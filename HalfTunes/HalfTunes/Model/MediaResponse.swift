@@ -30,25 +30,47 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import UIKit
+import Foundation
 import SwiftUI
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-
-  var window: UIWindow?
-
-  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-    // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
-    // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
-    // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
-
-    // Use a UIHostingController as window root view controller.
-    if let windowScene = scene as? UIWindowScene {
-        let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = UIHostingController(rootView: SongDetailView())
-        self.window = window
-        window.makeKeyAndVisible()
-    }
-  }
+struct MediaResponse: Codable{
+  var results: [MusicItem]
 }
 
+struct MusicItem: Codable, Identifiable  {
+  
+  let id: Int
+  let artistName: String
+  let trackName: String
+  let collectionName: String
+  let preview: String
+  let artwork: String
+  
+  var localFile: URL?
+  var isDownloading = false
+  var downloadLocation: URL?
+  var previewUrl: URL? {
+    return URL(string: preview)
+  }
+  
+  enum CodingKeys: String, CodingKey {
+    case id = "trackId"
+    case artistName
+    case trackName
+    case collectionName
+    case preview = "previewUrl"
+    case artwork = "artworkUrl100"
+  }
+  
+}
+
+extension MusicItem {
+  init(id: Int, artistName: String, trackName: String, collectionName: String, preview: String, artwork: String) {
+    self.id = id
+    self.artistName = artistName
+    self.trackName = trackName
+    self.collectionName = collectionName
+    self.preview = preview
+    self.artwork = artwork
+  }
+}

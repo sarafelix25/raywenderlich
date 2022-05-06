@@ -31,24 +31,52 @@
 /// THE SOFTWARE.
 
 import UIKit
-import SwiftUI
+import Combine
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-
-  var window: UIWindow?
-
-  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-    // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
-    // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
-    // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
-
-    // Use a UIHostingController as window root view controller.
-    if let windowScene = scene as? UIWindowScene {
-        let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = UIHostingController(rootView: SongDetailView())
-        self.window = window
-        window.makeKeyAndVisible()
+struct ArtistBio: Codable {
+    let text: String
+    
+    enum CodingKeys: String, CodingKey {
+        case text = "biography"
     }
-  }
 }
 
+struct ArtistImage: Codable {
+    let photo: String
+}
+
+final class ArtistQuery: ObservableObject {
+    
+    @Published var photo = UIImage(named: "c_urlsession_card_artwork")!
+    @Published var bio = ""
+    
+    var subscriptions: Set<AnyCancellable> = []
+    
+    init() {
+        let bioURL = URL(string: "https://api.npoint.io/94eb9171de74dd682f6c")!
+        let bioPublisher = URLSession.shared.dataTaskPublisher(for: bioURL)
+            .map(\.data)
+            .decode(type: ArtistBio.self, decoder: JSONDecoder())
+        
+        let photoUrl = URL(string: "https://api.npoint.io/661957f61f715ef25112")!
+        let photoPublisher = URLSession.shared.dataTaskPublisher(for: photoUrl)
+            .map(\.data)
+            .decode(type: ArtistImage.self, decoder: JSONDecoder())
+            .compactMap { URL(string: $0.photo) }
+            .flatMap {
+                URLSession.shared.dataTaskPublisher(for: $0)
+                    .compactMap { UIImage(data: $0.data) }
+                    .mapError { $0 as Error }
+            }
+        
+        Publishers.Zip(bioPublisher, photoPublisher)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { completion in
+                print(completion)
+            }, receiveValue: { bio, photo in
+                self.photo = photo
+                self.bio = bio.text
+            })
+            .store(in: &subscriptions)
+    }
+}

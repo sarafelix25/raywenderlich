@@ -30,25 +30,28 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import UIKit
 import SwiftUI
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-
-  var window: UIWindow?
-
-  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-    // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
-    // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
-    // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
-
-    // Use a UIHostingController as window root view controller.
-    if let windowScene = scene as? UIWindowScene {
-        let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = UIHostingController(rootView: SongDetailView())
-        self.window = window
-        window.makeKeyAndVisible()
+struct SongDetailView: View {
+  
+  @ObservedObject var artistInfo = ArtistQuery()
+  
+  var body: some View {
+    VStack {
+      Image(uiImage: artistInfo.photo)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+      Text("Leonard Cohen")
+      Text(self.artistInfo.bio)
+        .padding()
+      Spacer()
     }
+  }
+}
+
+struct SongDetailView_Previews: PreviewProvider {
+  static var previews: some View {
+    SongDetailView()
   }
 }
 
