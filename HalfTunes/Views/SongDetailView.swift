@@ -33,7 +33,7 @@
 import SwiftUI
 
 struct SongDetailView: View {
-  
+
   @ObservedObject var artistInfo = ArtistQuery()
   
   var body: some View {
@@ -43,8 +43,11 @@ struct SongDetailView: View {
         .aspectRatio(contentMode: .fit)
       Text("Leonard Cohen")
       Text(self.artistInfo.bio)
-        .padding()
+      .padding()
       Spacer()
+    }
+    .alert(isPresented: self.$artistInfo.didFail) {
+      Alert(title: Text("Connection Failure"), message: Text(self.artistInfo.errorMessage))
     }
   }
 }

@@ -36,53 +36,97 @@ import Combine
 struct ArtistInfo: Codable {
     let biography: String
     let photo: String
-}
-
-struct Token: Codable {
-    let location: String
+    let totalAlbums: Int
 }
 
 final class ArtistQuery: ObservableObject {
     
+    enum Error: Swift.Error, CustomStringConvertible {
+        case network
+        case parsing
+        case unknowm
+        
+        var description: String {
+            switch self {
+            case .network:
+                return "A network error ocurred."
+            case .parsing:
+                return "Unable to parse server response."
+            case .unknowm:
+                return "An unknowm error occurred"
+            }
+        }
+        
+        init(_ error: Swift.Error) {
+            switch error {
+            case is URLError:
+                self = .network
+            case is DecodingError:
+                self = .parsing
+            default:
+                self = error as? ArtistQuery.Error ?? .unknowm
+            }
+        }
+        
+    }
+    
     @Published var photo = UIImage(named: "c_urlsession_card_artwork")!
-    @Published var bio = ""
+    @Published var bio = "Loading..."
+    @Published var errorMessage: String = ""
+    @Published var didFail = false
     
     var cancellables: Set<AnyCancellable> = []
     
     init() {
-        let locationUrl = URL(string: "https://api.npoint.io/e0b6213b830ade9ac1f8")!
-        let artistInfoPublisher = URLSession.shared.dataTaskPublisher(for: locationUrl)
-            .map(\.data)
-            .decode(type: Token.self, decoder: JSONDecoder())
-            .flatMap { item in
-                self.getArtistInfo(forLocation: item.location)
-            }
         
-        let photoPublisher = artistInfoPublisher
+        let locationURL = URL(string: "https://api.npoint.io/f09b834bc4aa9aee035c")!
+        let artistPublisher = URLSession.shared.dataTaskPublisher(for: locationURL)
+            .tryMap { result in
+                guard let response = result.response as? HTTPURLResponse else {
+                    throw ArtistQuery.Error.network
+                }
+                guard (200..<300).contains(response.statusCode) else {
+                    throw ArtistQuery.Error.network
+                }
+                return result.data
+            }
+        //            .retry(2)
+            .decode(type: ArtistInfo.self, decoder: JSONDecoder())
+            .mapError(ArtistQuery.Error.init)
+        
+        let photoPublisher = artistPublisher
             .compactMap { URL(string: $0.photo)}
-            .flatMap { photoUrl in
-                URLSession.shared.dataTaskPublisher(for: photoUrl)
+            .flatMap {
+                URLSession.shared.dataTaskPublisher(for: $0)
                     .compactMap { UIImage(data: $0.data)}
-                    .mapError { $0 as Error}
+                    .mapError(ArtistQuery.Error.init)
             }
         
-        Publishers.Zip(artistInfoPublisher, photoPublisher)
+        Publishers.Zip(artistPublisher, photoPublisher)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completion in
-                print(completion)
-            },
-                  receiveValue: { info, photo in
+                switch completion {
+                case .failure(let error):
+                    self.didFail = true
+                    self.errorMessage = error.description
+                default:
+                    break
+                }
+            }, receiveValue: { artist, photo in
+                self.bio = artist.biography
                 self.photo = photo
-                self.bio = info.biography
-            }
-            ).store(in: &cancellables)
-    }
-    
-    func getArtistInfo(forLocation location: String) -> AnyPublisher<ArtistInfo, Error> {
-        let artistUrl = URL(string: "https://api.npoint.io/\(location)")!
-        return URLSession.shared.dataTaskPublisher(for: artistUrl)
-            .map { $0.data }
-            .decode(type: ArtistInfo.self, decoder: JSONDecoder())
-            .eraseToAnyPublisher()
+            })
+            .store(in: &cancellables)
     }
 }
+
+
+
+
+
+
+
+
+
+
+
