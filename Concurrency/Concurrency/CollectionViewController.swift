@@ -70,7 +70,23 @@ final class CollectionViewController: UICollectionViewController {
     }
   }
   
-  private func downloadWithUrlSession(at indexPath: IndexPath) {}
+  private func downloadWithUrlSession(at indexPath: IndexPath) {
+    URLSession.shared.dataTask(with: urls[indexPath.item]) {
+      [weak self] data, response, error in
+
+      guard let self = self,
+        let data = data,
+        let image = UIImage(data: data) else {
+          return
+      }
+
+      DispatchQueue.main.async {
+        if let cell = self.collectionView.cellForItem(at: indexPath) as? PhotoCell {
+          cell.display(image: image)
+        }
+      }
+    }.resume()
+  }
 }
 
 // MARK: - Data source
@@ -84,8 +100,8 @@ extension CollectionViewController {
 
     cell.display(image: nil)
 
-    downloadWithGlobalQueue(at: indexPath)
-//    downloadWithUrlSession(at: indexPath)
+    //downloadWithGlobalQueue(at: indexPath)
+    downloadWithUrlSession(at: indexPath)
 
     return cell
   }
